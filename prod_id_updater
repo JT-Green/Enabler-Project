@@ -1,0 +1,43 @@
+import openpyxl
+
+wb1 = openpyxl.load_workbook('G:\jt\prod_id.xlsx')
+wb2 = openpyxl.load_workbook('G:\Public\\National Accounts\WeeklyBestsellerImports\~Firebrand.xlsx')
+
+prod_id = wb1.active
+firebrand = wb2.active
+
+firebrand_new = {}
+current_values = []
+
+for row in range(2, prod_id.max_row + 1):
+    
+    p_value = prod_id['A' + str(row)].value
+    current_values.append(p_value)
+            
+for row in range(2, firebrand.max_row + 1):
+
+    f_value1 = firebrand['A' + str(row)].value
+    f_value2 = firebrand['B' + str(row)].value
+    
+    if f_value1 == None or f_value2 == None:
+        continue
+    
+    elif f_value2 in current_values:
+        continue
+    
+    else:
+        firebrand_new[f_value1] = f_value2
+        firebrand_new[f_value2] = f_value1
+
+relative_pos = prod_id.max_row + 1
+    
+for value in firebrand_new:
+    
+    value_pair = firebrand_new[value]
+    
+    prod_id['A' + str(relative_pos)] = value
+    prod_id['B' + str(relative_pos)] = value_pair
+    
+    relative_pos += 1
+
+wb1.save('G:\jt\prod_id.xlsx')

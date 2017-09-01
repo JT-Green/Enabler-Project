@@ -1,0 +1,57 @@
+import json
+import pyperclip
+import openpyxl 
+import tkinter as tk
+from tkinter import messagebox
+
+json_file = 'lookup_list.json'
+prodid_file = 'G:\jt\prod_id.xlsx'
+
+with open(json_file) as f_obj:
+        values = json.load(f_obj)
+
+lookup = pyperclip.paste().strip()
+
+# Update procedure
+if lookup == "Update Enabler with latest values":
+    
+    lookup_list = {}
+
+    wb = openpyxl.load_workbook(prodid_file)
+    sheet = wb.active
+
+    for row in range(2, sheet.max_row + 1):
+        lookup_input = sheet['A' + str(row)].value
+        lookup_output = sheet['B' + str(row)].value
+    
+        lookup_list[lookup_input] = lookup_output
+
+    with open(json_file, 'w') as f_obj:
+        json.dump(lookup_list, f_obj)
+
+    #hides the Tk window that pops up
+    root = tk.Tk()
+    root.withdraw()
+    messagebox.showinfo("Enabler", "You've successfully updated Enabler.")
+
+# Default procedure
+elif lookup in values:
+    corresponding = values[lookup]
+    pyperclip.copy(corresponding)
+
+# Handling errors
+else:
+    
+    #hides the Tk window that pops up
+    root = tk.Tk()
+    root.withdraw()
+    
+    #limits error string to 30 characters
+    if len(lookup) > 30:
+        lookup_error = lookup[:30] + "..." 
+    else:
+        lookup_error = lookup
+    
+    error = "There was no valid match for :\n\n" + lookup_error
+    
+    messagebox.showinfo("Enabler Error", error)
