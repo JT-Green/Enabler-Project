@@ -1,0 +1,15 @@
+import os, time
+
+prod_id = 'G:\jt\prod_id.xlsx'
+values = 'lookup_list.json'
+
+prod_time = os.path.getmtime(prod_id)
+values_time = os.path.getmtime(values)
+
+print("Prod_ID last modified: %s" % time.ctime(prod_time))
+print("Values last modified: %s" % time.ctime(values_time))
+
+if prod_time> values_time:
+    print("Update is available.")
+else:
+    print("You are up-to-date.")
