@@ -1,24 +1,24 @@
 import os
 import json
 import pyperclip
-import openpyxl
 import tkinter as tk
 from tkinter import messagebox
 import win32com.client
 import csv
+# import openpyxl
 
 VP_JSON = r'values_pairs.json'
-VP_XLSX = r'G:\jt\prod_id.xlsx'
 VP_CSV = r'G:\jt\value_pairs.csv'
+# VP_XLSX = r'G:\jt\prod_id.xlsx'
 
 
 def create_lookup():
-    """Creates the values_pairs.json file"""
+    """
+    Creates the local values_pairs.json file that is used for matching.
+    """
 
     with open(VP_CSV) as f:
-        f.readline()  # ignore first line (header)
         values_pairs = dict(csv.reader(f, delimiter=','))
-
 
     # wb = openpyxl.load_workbook(VP_XLSX)
     # sheet = wb.active
@@ -34,35 +34,44 @@ def create_lookup():
 
 
 def match_pairs():
-    """ DOCUMENTATION TK"""
-    with open(VP_JSON) as f_obj:
-        values = json.load(f_obj)
+    """Loads local json file into a dict, and matches based on input."""
 
-    if len(lookup) == 13 and lookup[0:3] == "978":
-        corresponding = values[lookup]
+    with open(VP_JSON) as f_obj:
+        values_pairs = json.load(f_obj)
+
+    # Removes extra spaces (mostly to deal with copy from Excel cells.
+    # Removes hyphens since users often receive ISBNs in that format.
+    clean_lookup = lookup.strip().replace("-", "")
+
+    if len(clean_lookup) == 13 and clean_lookup[0:3] == "978":
+        corresponding = values_pairs[clean_lookup]
         pyperclip.copy(corresponding)
 
-    elif len(lookup) <= 8 and lookup[0].isdigit():
-        corresponding = list(values.keys())[list(values.values()).index(lookup)]
+    elif len(clean_lookup) <= 8 and clean_lookup[0].isdigit():
+        corresponding = list(values_pairs.keys())[
+                            list(values_pairs.values()).index(clean_lookup)]
         pyperclip.copy(corresponding)
 
     else:
-        raise KeyError
+        show_unmatched()
+
 
 def show_unmatched():
-    """ DOCUMENTATION TK"""
+    """Informs user of no match, and allows them to see what they input."""
+
+    # Limits displayed input to 30 characters for readability.
     if len(lookup) > 30:
-        lookup_error = lookup[:30] + " . . ."
+        lookup_error = "{} . . . ".format(lookup[:30])
     else:
         lookup_error = lookup
 
-    error_msg = "There was no valid match for :\n\n" + lookup_error
+    no_match_msg = "There was no valid match for:\n\n {}".format(lookup_error)
     hide_root()
-    messagebox.showinfo("Enabler Error", error_msg)
+    messagebox.showinfo("No Match Found", no_match_msg)
 
 
 def update_available():
-    """ DOCUMENTATION TK"""
+    """Checks to see if server's master CSV file is newer than local JSON."""
     csv_time = os.path.getmtime(VP_CSV)
     json_time = os.path.getmtime(VP_JSON)
     # xlsx_time = os.path.getmtime(VP_XLSX)
@@ -72,43 +81,53 @@ def update_available():
 
 
 def should_update_json():
-    """ DOCUMENTATION TK"""
+    """If no match might be due to outdated JSON, allows user to update."""
     hide_root()
 
     if messagebox.askyesno("Update?",
                 "There was no valid match."
-                + "\nThere is an update available for the values list."
-                + "\nWould you like to update and try again?"
-        ):
+                "\nThere is an update available for the values list."
+                "\nWould you like to update and try again?"):
         return True
 
 
 def hide_root():
-    """ Just hides the Tkinter terminal window so it doesn't pop up. """
+    """Just hides the Tkinter terminal window so it doesn't pop up."""
     root = tk.Tk()
     root.withdraw()
 
 
 def email_unexpected_error():
-    """ Tells user an unexpected error occurred, and allows emailing JT. """
+    """Tells user an unexpected error occurred, and encourages emailing JT."""
 
-    o = win32com.client.Dispatch("Outlook.Application")
+    hide_root()
 
-    msg = o.CreateItem(0)
-    msg.Subject = "Enabler Error Submission"
-    msg.HTMLBody = (
-        "Hi JT,<br><br>I encountered an error while using Enabler." +
-        "Here is what I was doing when the error occurred:<br><br>" +
-        "[type error conditions here]<br><br>Eternally grateful,<br>")
+    error_msg = ("There was an unexpected error. Would you like to email JT?\n" 
+                 "Doing so will help make improvements so that this doesn't "
+                 "happen again.")
 
-    msg.To = "jt@workman.com"
+    if messagebox.askyesno("Unexpected Enabler Error", error_msg):
 
-    msg.Display()
+        o = win32com.client.Dispatch("Outlook.Application")
+
+        msg = o.CreateItem(0)
+        msg.Subject = "Enabler Error Submission"
+        msg.HTMLBody = (
+            "Hi JT,<br><br>I encountered an error while using Enabler. "
+            "Here is what I was doing when the error occurred:<br><br>"
+            "<b>What I was trying to convert: </b> {}"
+            "<br><b>More details about what I was doing: (As detailed as "
+            "possible, please)</b> "
+            "<br><br>Eternally grateful,<br>".format(lookup))
+
+        msg.To = "jt@workman.com"
+
+        msg.Display()
 
 
 ###############################################################################
 
-lookup = pyperclip.paste().strip()
+lookup = pyperclip.paste()
 
 while True:
     try:
@@ -118,10 +137,12 @@ while True:
     except FileNotFoundError:
         create_lookup()
 
-    except KeyError:
+    except (KeyError, ValueError):
         if update_available():
             if should_update_json():
                 create_lookup()
+            else:
+                break
         else:
             show_unmatched()
             break
